@@ -5,7 +5,6 @@
     "./packages/models"
   ],
   "tasks": {
-    "spike": "deno run --allow-ffi --allow-env --unstable-ffi spike/m0_ffi_roundtrip.ts",
     "codegen": "deno run --allow-run --allow-read --allow-write --allow-env packages/core/codegen/generate.ts",
     "chat": "deno run --allow-ffi --allow-env --allow-read --allow-write --allow-net --unstable-ffi examples/chat.ts",
     "demo": "deno run --allow-ffi --allow-env --allow-read --allow-write --allow-net --allow-run --unstable-ffi examples/summarizer/server.ts",

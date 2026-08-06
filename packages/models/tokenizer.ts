@@ -1,6 +1,6 @@
 /**
- * Tokenization via transformers.js (pure JS) — no second native dependency, per
- * the plan. Loads the tokenizer for a repo id (transformers.js manages its own
+ * Tokenization via transformers.js (pure JS) — no second native dependency.
+ * Loads the tokenizer for a repo id (transformers.js manages its own
  * download/cache of tokenizer.json).
  */
 

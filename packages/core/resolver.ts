@@ -6,9 +6,7 @@
  *
  *   1. DENO_MLX_DYLIB          explicit override (also used by CI / tests)
  *   2. Homebrew / system paths  `brew install mlx-c`
- *   3. vendored / downloaded    pinned prebuilt beside the binary  (M1)
- *
- * M0 implements 1 + 2; the vendored/download path lands in M1.
+ *   3. vendored                 a copy beside the executable
  */
 
 const HOMEBREW_CANDIDATES = [
@@ -46,8 +44,7 @@ export function resolveMlxcPath(): string {
 /**
  * Locations checked for a vendored dylib, relative to the running executable.
  * For `deno compile` apps, drop libmlxc.dylib next to the binary (or in a
- * `vendor/` subdir). Auto-download of a pinned prebuilt into the user cache is
- * planned once tagged mlx-c release assets are published.
+ * `vendor/` subdir).
  */
 function vendoredCandidates(): string[] {
   let dir: string;
@@ -74,7 +71,7 @@ function canStat(path: string): boolean {
   } catch (err) {
     if (err instanceof Deno.errors.NotFound) return false;
     // A permission error is NOT absence — surface it, don't mask it as
-    // "dylib missing" (that misdirected the M0 compile probe).
+    // "dylib missing".
     if (err instanceof Deno.errors.PermissionDenied) {
       throw new Error(
         `Cannot read ${path}: missing --allow-read for the mlx-c dylib. ` +

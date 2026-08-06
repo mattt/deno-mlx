@@ -2,8 +2,7 @@
  * C type -> Deno FFI type mapping for mlx-c.
  *
  * The mlx-c headers are machine-generated and use a small, closed type
- * vocabulary, so this table is nearly the whole story (see spike/README.md and
- * the M1 header survey). The rules, in order:
+ * vocabulary, so this table is nearly the whole story. The rules, in order:
  *
  *   1. function pointers `(*)` and the two vtable/handler typedefs -> UNSUPPORTED
  *   2. any pointer (`T *`) -> "pointer"

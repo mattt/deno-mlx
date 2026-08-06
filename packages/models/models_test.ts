@@ -1,7 +1,7 @@
 /**
  * @deno-mlx/models tests. Deterministic and network-free: they use fixed token
- * ids and assert against values captured from Python `mlx_lm` (see the M3
- * validation in the commit history). Requires the model in the HF cache
+ * ids and assert against values captured from Python `mlx_lm`. Requires the
+ * model in the HF cache
  * (`hf download HuggingFaceTB/SmolLM2-135M-Instruct`) and libmlxc.dylib; the
  * suite is skipped if the model is absent.
  */

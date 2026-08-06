@@ -2,7 +2,7 @@
  * @deno-mlx/tensor — Layer 2: an idiomatic, lifetime-managed tensor over
  * mlx-c's raw handles.
  *
- * Memory model (the make-or-break, per the node-mlx lessons in the plan):
+ * Memory model:
  *   - MLX arrays are native and are NOT freed by GC. `Tensor` implements
  *     `Symbol.dispose`, so `using t = ...` frees deterministically.
  *   - `tidy(fn)` frees every tensor created inside `fn` except the one(s)

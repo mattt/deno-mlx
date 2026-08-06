@@ -1,7 +1,7 @@
 /**
- * M1 codegen — generate Deno FFI bindings from the mlx-c headers.
+ * Generate Deno FFI bindings from the mlx-c headers.
  *
- * Pipeline (see the plan's "Layer 1 — FFI codegen"):
+ * Pipeline:
  *   1. clang -ast-dump=json over `mlx/c/mlx.h`  (a real parse, not regex)
  *   2. collect every `mlx_*` FunctionDecl, with return + parameter C types
  *   3. map each type via ./typemap.ts; a fn is bound only if all types map
