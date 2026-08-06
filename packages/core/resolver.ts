@@ -30,10 +30,41 @@ export function resolveMlxcPath(): string {
     if (canStat(candidate)) return candidate;
   }
 
+  // 3. vendored beside the executable — this is what lets a `deno compile`d app
+  //    ship the dylib next to its binary and run on a machine without Homebrew.
+  for (const candidate of vendoredCandidates()) {
+    if (canStat(candidate)) return candidate;
+  }
+
   throw new Error(
-    "Could not locate libmlxc.dylib. Install it with `brew install mlx-c`, " +
-      "or set DENO_MLX_DYLIB to its path.",
+    "Could not locate libmlxc.dylib. Options: `brew install mlx-c`, set " +
+      "DENO_MLX_DYLIB=/path/to/libmlxc.dylib, or place libmlxc.dylib beside " +
+      "the executable (or in ./vendor/).",
   );
+}
+
+/**
+ * Locations checked for a vendored dylib, relative to the running executable.
+ * For `deno compile` apps, drop libmlxc.dylib next to the binary (or in a
+ * `vendor/` subdir). Auto-download of a pinned prebuilt into the user cache is
+ * planned once tagged mlx-c release assets are published.
+ */
+function vendoredCandidates(): string[] {
+  let dir: string;
+  try {
+    dir = dirname(Deno.execPath());
+  } catch {
+    return [];
+  }
+  return [
+    `${dir}/libmlxc.dylib`,
+    `${dir}/vendor/libmlxc.dylib`,
+  ];
+}
+
+function dirname(path: string): string {
+  const i = path.lastIndexOf("/");
+  return i <= 0 ? "." : path.slice(0, i);
 }
 
 function canStat(path: string): boolean {
