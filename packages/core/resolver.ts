@@ -35,9 +35,9 @@ export function resolveMlxcPath(): string {
   }
 
   throw new Error(
-    "Could not locate libmlxc.dylib. Options: `brew install mlx-c`, set " +
-      "DENO_MLX_DYLIB=/path/to/libmlxc.dylib, or place libmlxc.dylib beside " +
-      "the executable (or in ./vendor/).",
+    "mlx-c is not installed (libmlxc.dylib not found). Install with " +
+      "`brew install mlx-c`, set DENO_MLX_DYLIB=/path/to/libmlxc.dylib, or " +
+      "place libmlxc.dylib beside the executable (or in ./vendor/).",
   );
 }
 
