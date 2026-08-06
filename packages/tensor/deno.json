@@ -1,5 +1,8 @@
 {
   "name": "@deno-mlx/tensor",
   "version": "0.0.0",
-  "exports": "./mod.ts"
+  "exports": "./mod.ts",
+  "imports": {
+    "@deno-mlx/core": "../core/mod.ts"
+  }
 }
