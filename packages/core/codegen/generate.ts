@@ -48,17 +48,32 @@ async function brewPrefix(formula: string): Promise<string | null> {
   }
 }
 
+/** True if `path` exists. */
+async function exists(path: string): Promise<boolean> {
+  try {
+    await Deno.stat(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Locate the mlx-c include dir and dylib (env overrides, else Homebrew). */
 async function locate(): Promise<{ include: string; dylib: string }> {
   const envInc = Deno.env.get("DENO_MLX_INCLUDE");
   const envLib = Deno.env.get("DENO_MLX_DYLIB");
   const prefix = await brewPrefix("mlx-c");
+  // brew --prefix returns a path even when the formula is not installed, so
+  // we must verify the header/dylib actually exist before trusting it.
   const include = envInc ?? (prefix ? `${prefix}/include` : null);
   const dylib = envLib ?? (prefix ? `${prefix}/lib/libmlxc.dylib` : null);
-  if (!include || !dylib) {
+  const header = include ? `${include}/mlx/c/mlx.h` : null;
+  if (
+    !include || !dylib || !header || !(await exists(header)) || !(await exists(dylib))
+  ) {
     throw new Error(
-      "Cannot locate mlx-c. Install `brew install mlx-c` or set " +
-        "DENO_MLX_INCLUDE and DENO_MLX_DYLIB.",
+      "mlx-c is not installed (or not findable). Install with `brew install mlx-c`, " +
+        "or set DENO_MLX_INCLUDE and DENO_MLX_DYLIB to a local build.",
     );
   }
   return { include, dylib };
