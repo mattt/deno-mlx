@@ -1,0 +1,14 @@
+# Deno
+.deno/
+
+# Vendored / downloaded native libs (resolved at runtime; never committed)
+vendor/
+*.dylib
+
+# Build + scratch
+build/
+dist/
+.cache/
+
+# OS
+.DS_Store

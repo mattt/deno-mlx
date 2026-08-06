@@ -1,0 +1,5 @@
+{
+  "name": "@deno-mlx/tensor",
+  "version": "0.0.0",
+  "exports": "./mod.ts"
+}

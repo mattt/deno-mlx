@@ -1,0 +1,23 @@
+{
+  "workspace": [
+    "./packages/core",
+    "./packages/tensor",
+    "./packages/models"
+  ],
+  "tasks": {
+    "spike": "deno run --allow-ffi --allow-env --unstable-ffi spike/m0_ffi_roundtrip.ts",
+    "test": "deno test --allow-ffi --allow-env --allow-read --unstable-ffi"
+  },
+  "fmt": {
+    "useTabs": false,
+    "lineWidth": 90,
+    "indentWidth": 2,
+    "semiColons": true,
+    "singleQuote": false
+  },
+  "lint": {
+    "rules": {
+      "tags": ["recommended"]
+    }
+  }
+}
