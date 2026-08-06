@@ -18,13 +18,11 @@
 import { type LlamaConfig, loadConfig } from "./config.ts";
 import { LlamaModel } from "./llama.ts";
 import { loadTokenizer, type Tokenizer } from "./tokenizer.ts";
-import {
-  generate,
-  type GeneratedToken,
-  type GenerateOptions,
-} from "./generate.ts";
+import { generate, type GeneratedToken, type GenerateOptions } from "./generate.ts";
 
 export { KVCache, LlamaModel } from "./llama.ts";
+export { type BertConfig, BertModel, loadBertConfig } from "./bert.ts";
+export { cosineSimilarity, type Embedder, loadEmbedder } from "./embeddings.ts";
 export { type LlamaConfig, loadConfig } from "./config.ts";
 export { hubFile, resolveSnapshot } from "./hub.ts";
 export { Weights } from "./weights.ts";

@@ -123,6 +123,63 @@ export function sigmoid(x: Tensor): Tensor {
   return result((r) => c.mlx_sigmoid(ptr(r), x.handle, stream()));
 }
 
+/** LayerNorm with weight + bias (BERT-style). */
+export function layerNorm(
+  x: Tensor,
+  weight: Tensor,
+  bias: Tensor,
+  eps: number,
+): Tensor {
+  return result((r) =>
+    c.mlx_fast_layer_norm(ptr(r), x.handle, weight.handle, bias.handle, eps, stream())
+  );
+}
+
+export function erf(x: Tensor): Tensor {
+  return result((r) => c.mlx_erf(ptr(r), x.handle, stream()));
+}
+
+/** Exact GELU: x * 0.5 * (1 + erf(x / sqrt(2))). */
+export function gelu(x: Tensor): Tensor {
+  using scaled = mulScalar(x, 1 / Math.SQRT2);
+  using e = erf(scaled);
+  using shifted = addScalar(e, 1);
+  using half = mulScalar(shifted, 0.5);
+  return x.multiply(half);
+}
+
+export function meanAxis(x: Tensor, axis: number, keepdims = false): Tensor {
+  return result((r) => c.mlx_mean_axis(ptr(r), x.handle, axis, keepdims, stream()));
+}
+
+export function sumAxis(x: Tensor, axis: number, keepdims = false): Tensor {
+  return result((r) => c.mlx_sum_axis(ptr(r), x.handle, axis, keepdims, stream()));
+}
+
+export function sqrt(x: Tensor): Tensor {
+  return result((r) => c.mlx_sqrt(ptr(r), x.handle, stream()));
+}
+
+/** x + scalar (broadcast). */
+export function addScalar(x: Tensor, v: number): Tensor {
+  using s = scalarF32(v);
+  return x.add(s);
+}
+
+/** y = x @ W^T + b (HF-layout weight [out, in], bias [out]). */
+export function linearBias(x: Tensor, weight: Tensor, bias: Tensor): Tensor {
+  using y = linear(x, weight);
+  return y.add(bias);
+}
+
+/** L2-normalize along the last axis: x / ||x||_2. */
+export function l2Normalize(x: Tensor): Tensor {
+  using sq = x.multiply(x);
+  using ss = sumAxis(sq, x.ndim - 1, true);
+  using norm = sqrt(ss);
+  return x.divide(norm);
+}
+
 /** SiLU / swish: x * sigmoid(x). */
 export function silu(x: Tensor): Tensor {
   using sig = sigmoid(x);
