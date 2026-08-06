@@ -65,6 +65,7 @@ export class KVCache {
 export class LlamaModel {
   #embed: Tensor;
   #norm: Tensor;
+  #lmHead: Tensor | undefined; // undefined => tied to #embed
   #layers: LayerWeights[];
   readonly cfg: LlamaConfig;
 
@@ -72,11 +73,13 @@ export class LlamaModel {
     cfg: LlamaConfig,
     embed: Tensor,
     norm: Tensor,
+    lmHead: Tensor | undefined,
     layers: LayerWeights[],
   ) {
     this.cfg = cfg;
     this.#embed = embed;
     this.#norm = norm;
+    this.#lmHead = lmHead;
     this.#layers = layers;
   }
 
@@ -84,6 +87,8 @@ export class LlamaModel {
     using w = Weights.load(hubFile(repoId, "model.safetensors"));
     const embed = w.get("model.embed_tokens.weight");
     const norm = w.get("model.norm.weight");
+    // Untied models ship an explicit lm_head; tied ones reuse embed_tokens.
+    const lmHead = w.has("lm_head.weight") ? w.get("lm_head.weight") : undefined;
     const layers: LayerWeights[] = [];
     for (let i = 0; i < cfg.numLayers; i++) {
       const p = `model.layers.${i}`;
@@ -99,7 +104,7 @@ export class LlamaModel {
         down: w.get(`${p}.mlp.down_proj.weight`),
       });
     }
-    return new LlamaModel(cfg, embed, norm, layers);
+    return new LlamaModel(cfg, embed, norm, lmHead, layers);
   }
 
   /**
@@ -158,10 +163,10 @@ export class LlamaModel {
     const logits = tidy(() => {
       using hn = rmsNorm(h, this.#norm, rmsNormEps);
       using last = lastPosition(hn, seq, hiddenSize); // [1, hidden]
-      // tied embeddings: lm_head weight == embed_tokens weight [vocab, hidden]
-      return linear(last, this.#embed).reshape([this.cfg.vocabSize]).astype(
-        Dtype.MLX_FLOAT32,
-      );
+      // lm_head [vocab, hidden]; tied models reuse embed_tokens.
+      return linear(last, this.#lmHead ?? this.#embed)
+        .reshape([this.cfg.vocabSize])
+        .astype(Dtype.MLX_FLOAT32);
     });
     h[Symbol.dispose]();
     return logits;
@@ -176,6 +181,7 @@ export class LlamaModel {
   [Symbol.dispose](): void {
     this.#embed[Symbol.dispose]();
     this.#norm[Symbol.dispose]();
+    this.#lmHead?.[Symbol.dispose]();
     for (const l of this.#layers) {
       for (const t of Object.values(l)) t[Symbol.dispose]();
     }
