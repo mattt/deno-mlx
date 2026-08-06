@@ -4,11 +4,18 @@
     "./packages/tensor",
     "./packages/models"
   ],
+  "permissions": {
+    "mlx": {
+      "ffi": true,
+      "env": true,
+      "read": true
+    }
+  },
   "tasks": {
     "codegen": "deno run --allow-run --allow-read --allow-write --allow-env packages/core/codegen/generate.ts",
-    "chat": "deno run --allow-ffi --allow-env --allow-read --allow-write --allow-net --unstable-ffi examples/chat.ts",
-    "demo": "deno run --allow-ffi --allow-env --allow-read --allow-write --allow-net --allow-run --unstable-ffi examples/summarizer/server.ts",
-    "test": "deno test --allow-ffi --allow-env --allow-read --unstable-ffi"
+    "chat": "deno run -P=mlx --allow-write --allow-net --unstable-ffi examples/chat.ts",
+    "demo": "deno run -P=mlx --allow-write --allow-net --allow-run --unstable-ffi examples/summarizer/server.ts",
+    "test": "deno test -P=mlx --unstable-ffi"
   },
   "fmt": {
     "useTabs": false,
