@@ -172,6 +172,26 @@ export function linearBias(x: Tensor, weight: Tensor, bias: Tensor): Tensor {
   return y.add(bias);
 }
 
+export function log10(x: Tensor): Tensor {
+  return result((r) => c.mlx_log10(ptr(r), x.handle, stream()));
+}
+
+/** Elementwise max of two (broadcastable) tensors. */
+export function maximum(a: Tensor, b: Tensor): Tensor {
+  return result((r) => c.mlx_maximum(ptr(r), a.handle, b.handle, stream()));
+}
+
+/** Clip below `minVal` (no upper bound). */
+export function clipMin(x: Tensor, minVal: number): Tensor {
+  using lo = scalarF32(minVal);
+  return result((r) => c.mlx_clip(ptr(r), x.handle, lo.handle, NULL_ARR, stream()));
+}
+
+/** Reduce-max over all elements -> scalar tensor. */
+export function maxAll(x: Tensor): Tensor {
+  return result((r) => c.mlx_max(ptr(r), x.handle, false, stream()));
+}
+
 /** L2-normalize along the last axis: x / ||x||_2. */
 export function l2Normalize(x: Tensor): Tensor {
   using sq = x.multiply(x);
