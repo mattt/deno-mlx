@@ -5,8 +5,8 @@
  *   1. clang -ast-dump=json over `mlx/c/mlx.h`  (a real parse, not regex)
  *   2. collect every `mlx_*` FunctionDecl, with return + parameter C types
  *   3. map each type via ./typemap.ts; a fn is bound only if all types map
- *   4. emit generated/{symbols,types,meta}.ts
- *   5. validate emitted names against the dylib's actual exports (`nm -gU`)
+ *   4. validate names against the dylib's actual exports (`nm -gU`)
+ *   5. emit generated/{symbols,types,meta}.ts and `deno fmt` them
  *
  * This is a dev-time tool (deps on clang/nm are fine); the generated output is
  * committed and pinned to the mlx-c version it was produced from.
@@ -275,6 +275,13 @@ async function emit(x: EmitInput) {
         JSON.stringify(x.skipped, null, 2)
       };\n`,
   );
+
+  await run("deno", [
+    "fmt",
+    `${dir}symbols.ts`,
+    `${dir}types.ts`,
+    `${dir}meta.ts`,
+  ]);
 
   console.log(`emitted ${dir}{symbols,types,meta}.ts`);
 }
