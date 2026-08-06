@@ -1,5 +1,10 @@
 {
   "name": "@deno-mlx/models",
   "version": "0.0.0",
-  "exports": "./mod.ts"
+  "exports": "./mod.ts",
+  "imports": {
+    "@deno-mlx/core": "../core/mod.ts",
+    "@deno-mlx/tensor": "../tensor/mod.ts",
+    "@huggingface/transformers": "npm:@huggingface/transformers@^3"
+  }
 }
