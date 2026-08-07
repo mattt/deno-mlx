@@ -1,7 +1,8 @@
 /**
- * @deno-mlx/core loader — open libmlxc with the generated symbol table, install
- * an error handler so failures carry the real MLX message, and expose a
- * `checked` view that turns mlx-c status codes into thrown `MlxError`s.
+ * @deno-mlx/core loader —
+ * open libmlxc with the generated symbol table,
+ * install an error handler so failures carry the real MLX message,
+ * and expose a `checked` view that turns mlx-c status codes into thrown `MlxError`s.
  */
 
 import { resolveMlxcPath } from "./resolver.ts";
@@ -18,9 +19,10 @@ export class MlxError extends Error {
   }
 }
 
-// mlx-c reports failure detail through a global error handler; capture the last
-// message here so MlxError can include it. (This is the one callback we bind by
-// hand — the generated surface intentionally skips callback-taking functions.)
+// mlx-c reports failure detail through a global error handler;
+// capture the last message here so MlxError can include it.
+// (This is the one callback we bind by hand —
+// the generated surface intentionally skips callback-taking functions.)
 let lastError: string | undefined;
 
 function takeLastError(): string | undefined {

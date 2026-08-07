@@ -1,6 +1,7 @@
 /**
- * @deno-mlx/core smoke tests — exercise the generated bindings through the real
- * loader (openMlxc). Requires libmlxc.dylib (`brew install mlx-c`).
+ * @deno-mlx/core smoke tests —
+ * exercise the generated bindings through the real loader (openMlxc).
+ * Requires libmlxc.dylib (`brew install mlx-c`).
  *
  * FFI keeps the dylib + error callback open for the process lifetime by design,
  * so resource/op sanitizers are disabled here.

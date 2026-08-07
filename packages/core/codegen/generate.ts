@@ -8,8 +8,8 @@
  *   4. validate names against the dylib's actual exports (`nm -gU`)
  *   5. emit generated/{symbols,types,meta}.ts and `deno fmt` them
  *
- * This is a dev-time tool (deps on clang/nm are fine); the generated output is
- * committed and pinned to the mlx-c version it was produced from.
+ * This is a dev-time tool (deps on clang/nm are fine);
+ * the generated output is committed and pinned to the mlx-c version it was produced from.
  *
  * Run: deno task codegen
  */

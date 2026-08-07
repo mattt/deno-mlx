@@ -1,9 +1,9 @@
 /**
- * Whisper audio frontend: 16 kHz mono PCM -> log-mel spectrogram, matching
- * openai-whisper / mlx-whisper numerically.
+ * Whisper audio frontend: 16 kHz mono PCM -> log-mel spectrogram,
+ * matching openai-whisper / mlx-whisper numerically.
  *
- * The STFT is done as a real DFT matmul (cos/sin bases) rather than a complex
- * FFT — exact for the fixed n_fft=400 and it keeps everything in real tensors.
+ * The STFT is done as a real DFT matmul (cos/sin bases) rather than a complex FFT —
+ * exact for the fixed n_fft=400 and it keeps everything in real tensors.
  * The 80-bin mel filterbank is whisper's own (shipped as ./assets).
  */
 

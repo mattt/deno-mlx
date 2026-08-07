@@ -1,6 +1,6 @@
 /**
- * Whisper audio frontend test — deterministic and self-contained. The log-mel
- * of a fixed two-tone signal is checked against values captured from
+ * Whisper audio frontend test — deterministic and self-contained.
+ * The log-mel of a fixed two-tone signal is checked against values captured from
  * mlx_whisper.audio.log_mel_spectrogram (matched there at max|Δ| ~ 4e-6).
  * Needs libmlxc.dylib and the shipped mel filterbank asset.
  */
