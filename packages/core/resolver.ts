@@ -1,12 +1,16 @@
 /**
  * dylib resolver for mlx-c.
  *
- * Resolution order (the crux of the single-binary story — a `deno compile`d
- * binary carries no native code, so the dylib must be found at runtime):
+ * Resolution order
+ * (a compiled binary carries no native code, so the dylib must be found at runtime):
  *
  *   1. DENO_MLX_DYLIB          explicit override (also used by CI / tests)
  *   2. Homebrew / system paths  `brew install mlx-c`
- *   3. vendored                 a copy beside the executable
+ *   3. Vendored layouts relative to the executable:
+ *        {execDir}/libmlxc.dylib
+ *        {execDir}/vendor/libmlxc.dylib
+ *        {execDir}/../lib/libmlxc.dylib          (CLI archive layout)
+ *        {execDir}/../Frameworks/libmlxc.dylib   (macOS .app layout)
  */
 
 const HOMEBREW_CANDIDATES = [
@@ -28,8 +32,6 @@ export function resolveMlxcPath(): string {
     if (canStat(candidate)) return candidate;
   }
 
-  // 3. vendored beside the executable — this is what lets a `deno compile`d app
-  //    ship the dylib next to its binary and run on a machine without Homebrew.
   for (const candidate of vendoredCandidates()) {
     if (canStat(candidate)) return candidate;
   }
@@ -37,14 +39,13 @@ export function resolveMlxcPath(): string {
   throw new Error(
     "mlx-c is not installed (libmlxc.dylib not found). Install with " +
       "`brew install mlx-c`, set DENO_MLX_DYLIB=/path/to/libmlxc.dylib, or " +
-      "place libmlxc.dylib beside the executable (or in ./vendor/).",
+      "place libmlxc.dylib beside the executable, in ./vendor/, ../lib/, or " +
+      "../Frameworks/.",
   );
 }
 
 /**
  * Locations checked for a vendored dylib, relative to the running executable.
- * For `deno compile` apps, drop libmlxc.dylib next to the binary (or in a
- * `vendor/` subdir).
  */
 function vendoredCandidates(): string[] {
   let dir: string;
@@ -53,9 +54,12 @@ function vendoredCandidates(): string[] {
   } catch {
     return [];
   }
+  const parent = dirname(dir);
   return [
     `${dir}/libmlxc.dylib`,
     `${dir}/vendor/libmlxc.dylib`,
+    `${parent}/lib/libmlxc.dylib`,
+    `${parent}/Frameworks/libmlxc.dylib`,
   ];
 }
 
@@ -70,8 +74,6 @@ function canStat(path: string): boolean {
     return true;
   } catch (err) {
     if (err instanceof Deno.errors.NotFound) return false;
-    // A permission error is NOT absence — surface it, don't mask it as
-    // "dylib missing".
     if (err instanceof Deno.errors.PermissionDenied) {
       throw new Error(
         `Cannot read ${path}: missing --allow-read for the mlx-c dylib. ` +
