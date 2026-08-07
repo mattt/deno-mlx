@@ -1,14 +1,14 @@
 /**
- * @deno-mlx/tensor — Layer 2: an idiomatic, lifetime-managed tensor over
- * mlx-c's raw handles.
+ * @deno-mlx/tensor — Layer 2: an idiomatic, lifetime-managed tensor over mlx-c's raw handles.
  *
  * Memory model:
- *   - MLX arrays are native and are NOT freed by GC. `Tensor` implements
- *     `Symbol.dispose`, so `using t = ...` frees deterministically.
- *   - `tidy(fn)` frees every tensor created inside `fn` except the one(s)
- *     returned — the pattern the token loop leans on to avoid per-step leaks.
- *   - `eval()` is async by default (runs the blocking MLX eval on a Deno FFI
- *     thread) so it never stalls the event loop; `evalSync()` is available too.
+ *   - MLX arrays are native and are NOT freed by GC.
+ *     `Tensor` implements `Symbol.dispose`, so `using t = ...` frees deterministically.
+ *   - `tidy(fn)` frees every tensor created inside `fn` except the one(s) returned —
+ *     the pattern the token loop leans on to avoid per-step leaks.
+ *   - `eval()` is async by default (runs the blocking MLX eval on a Deno FFI thread)
+ *     so it never stalls the event loop;
+ *     `evalSync()` is available too.
  */
 
 import { Dtype, HANDLE, openMlxc, resolveMlxcPath } from "@deno-mlx/core";
@@ -24,8 +24,8 @@ function defaultStream(): Uint8Array {
 }
 
 // A second, non-blocking binding of the single-array eval so `Tensor.eval()`
-// can return a Promise without blocking the event loop. dlopen refcounts, so
-// this shares the already-loaded image with core.
+// can return a Promise without blocking the event loop.
+// dlopen refcounts, so this shares the already-loaded image with core.
 let asyncEval: ((h: Uint8Array) => Promise<number>) | undefined;
 function asyncEvalFn(): (h: Uint8Array) => Promise<number> {
   if (!asyncEval) {
@@ -44,10 +44,14 @@ function track(t: Tensor): void {
 }
 
 /**
- * Run `fn`, then dispose every `Tensor` created during it except the one(s) it
- * returns (a `Tensor`, or an array/record whose `Tensor` values are kept). If
- * `fn` throws, everything created is freed. Synchronous by design — keep the
- * MLX graph construction inside `tidy` and `await` the eval outside it.
+ * Run `fn`, then dispose every `Tensor` created during it except the one(s) it returns.
+ * Returned tensors are found by a deep walk of arrays and plain objects.
+ * If `fn` throws, everything created is freed.
+ * Synchronous by design —
+ * keep MLX graph construction inside `tidy` and `await` the eval outside it.
+ *
+ * Nested concurrent `tidy()` calls on the same thread are unsupported;
+ * use one scope per call stack frame.
  */
 export function tidy<T>(fn: () => T): T {
   scopes.push([]);
@@ -64,10 +68,22 @@ export function tidy<T>(fn: () => T): T {
 
 function collectTensors(v: unknown): Set<Tensor> {
   const set = new Set<Tensor>();
-  const add = (x: unknown) => x instanceof Tensor && set.add(x);
-  if (v instanceof Tensor) add(v);
-  else if (Array.isArray(v)) v.forEach(add);
-  else if (v && typeof v === "object") Object.values(v).forEach(add);
+  const seen = new Set<unknown>();
+  const walk = (x: unknown) => {
+    if (x == null || typeof x !== "object") return;
+    if (x instanceof Tensor) {
+      set.add(x);
+      return;
+    }
+    if (seen.has(x)) return;
+    seen.add(x);
+    if (Array.isArray(x)) {
+      for (const item of x) walk(item);
+    } else {
+      for (const item of Object.values(x as Record<string, unknown>)) walk(item);
+    }
+  };
+  walk(v);
   return set;
 }
 
@@ -87,7 +103,10 @@ export class Tensor {
     return new Tensor(handle);
   }
 
-  /** Build a float32 tensor from JS numbers. Data is copied into MLX. */
+  /**
+   * Build a float32 tensor from JS numbers.
+   * Data is copied into MLX.
+   */
   static fromFloat32(data: Float32Array | number[], shape: number[]): Tensor {
     const d = data instanceof Float32Array ? data : new Float32Array(data);
     if (d.length !== shape.reduce((a, b) => a * b, 1)) {
@@ -148,7 +167,11 @@ export class Tensor {
     return this;
   }
 
-  /** Evaluate and copy out as a JS Float32Array (float32 tensors only). */
+  /**
+   * Evaluate synchronously and copy out as a Float32Array.
+   * Blocks the event loop —
+   * prefer {@link toFloat32ArrayAsync} in servers.
+   */
   toFloat32Array(): Float32Array {
     if (this.dtype !== Dtype.MLX_FLOAT32) {
       throw new Error(
@@ -156,6 +179,21 @@ export class Tensor {
       );
     }
     this.evalSync();
+    return this.#copyFloat32();
+  }
+
+  /** Evaluate on an FFI thread, then copy out as a Float32Array. */
+  async toFloat32ArrayAsync(): Promise<Float32Array> {
+    if (this.dtype !== Dtype.MLX_FLOAT32) {
+      throw new Error(
+        `toFloat32ArrayAsync requires float32; got dtype ${this.dtype}. Use .astype first.`,
+      );
+    }
+    await this.eval();
+    return this.#copyFloat32();
+  }
+
+  #copyFloat32(): Float32Array {
     const p = s.mlx_array_data_float32(this.handle);
     if (!p) throw new Error("null float32 data pointer");
     const n = this.size;
@@ -165,10 +203,20 @@ export class Tensor {
     return out;
   }
 
-  /** Scalar value of a size-1 float32 tensor. */
+  /**
+   * Scalar value of a size-1 float32 tensor (blocking).
+   * Prefer {@link itemAsync} in servers.
+   */
   item(): number {
     if (this.size !== 1) throw new Error(`item() needs size 1, got ${this.size}`);
     return this.toFloat32Array()[0];
+  }
+
+  /** Scalar value of a size-1 float32 tensor (nonblocking eval). */
+  async itemAsync(): Promise<number> {
+    if (this.size !== 1) throw new Error(`itemAsync() needs size 1, got ${this.size}`);
+    const arr = await this.toFloat32ArrayAsync();
+    return arr[0];
   }
 
   add(other: Tensor): Tensor {

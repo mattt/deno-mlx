@@ -1,6 +1,7 @@
 /**
- * @deno-mlx/tensor tests — introspection, ops, async eval, and the memory model
- * (tidy + using). Requires libmlxc.dylib (`brew install mlx-c`).
+ * @deno-mlx/tensor tests —
+ * introspection, ops, async eval, and the memory model (tidy + using).
+ * Requires libmlxc.dylib (`brew install mlx-c`).
  */
 
 import {
@@ -60,6 +61,21 @@ Deno.test("tidy frees intermediates but keeps the result", opts, () => {
   assert(!a.disposed, "tidy must not free tensors created outside it");
   assertEquals(arr(result), [2, 8, 18, 32]); // (a+a)*a
   result[Symbol.dispose]();
+});
+
+Deno.test("tidy deep-walks nested returned tensors", opts, () => {
+  using a = Tensor.fromFloat32([1, 2], [2]);
+  let kept: Tensor | undefined;
+  let freed: Tensor | undefined;
+  const out = tidy(() => {
+    freed = a.add(a);
+    kept = a.multiply(a);
+    return { nested: { t: kept } };
+  });
+  assert(freed!.disposed, "unused nested-scope tensor should be freed");
+  assert(!kept!.disposed, "deeply nested returned tensor should be kept");
+  assertEquals(arr(out.nested.t), [1, 4]);
+  kept![Symbol.dispose]();
 });
 
 Deno.test("tidy frees everything when fn throws", opts, () => {
