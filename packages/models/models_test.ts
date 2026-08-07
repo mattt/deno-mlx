@@ -1,9 +1,10 @@
 /**
- * @deno-mlx/models tests. Deterministic and network-free: they use fixed token
- * ids and assert against values captured from Python `mlx_lm`. Requires the
- * model in the HF cache
- * (`hf download HuggingFaceTB/SmolLM2-135M-Instruct`) and libmlxc.dylib; the
- * suite is skipped if the model is absent.
+ * @deno-mlx/models tests.
+ * Deterministic and network-free:
+ * they use fixed token ids and assert against values captured from Python `mlx_lm`.
+ * Requires the model in the HF cache
+ * (`hf download HuggingFaceTB/SmolLM2-135M-Instruct`) and libmlxc.dylib;
+ * the suite is skipped if the model is absent.
  */
 
 import { assert, assertAlmostEquals, assertEquals } from "jsr:@std/assert@^1";
@@ -34,6 +35,8 @@ Deno.test("config parses SmolLM2 (Llama) fields", opts, () => {
   assertEquals(cfg.numKVHeads, 3);
   assertEquals(cfg.headDim, 64);
   assert(cfg.tieWordEmbeddings);
+  assert(cfg.maxPositionEmbeddings > 0);
+  assertEquals(cfg.modelType, "llama");
 });
 
 Deno.test("weights load with expected shapes / tied embeddings", opts, () => {
@@ -66,7 +69,7 @@ Deno.test("greedy KV-cache decode matches mlx_lm", opts, async () => {
   };
   const ids: number[] = [];
   for await (const t of generate(model, idTok, PROMPT_IDS, { maxTokens: 12 })) {
-    ids.push(t.id);
+    if (t.id >= 0) ids.push(t.id);
   }
   assertEquals(ids, [7042, 30, 7042, 314, 260, 3995, 2240, 281, 4649, 284, 260, 3575]);
 });

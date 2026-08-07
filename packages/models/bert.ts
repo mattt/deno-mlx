@@ -1,15 +1,20 @@
 /**
  * BERT-family encoder for embeddings (all-MiniLM-L6-v2, bge, e5, …).
  *
- * Differs from the Llama decoder: learned position + token-type embeddings,
- * LayerNorm (weight+bias) instead of RMSNorm, bidirectional attention (no causal
- * mask, no RoPE), GELU FFN, biased linears, and mean pooling + L2 normalize to a
- * sentence vector. Batch size 1, no padding (single sequence per call).
+ * Differs from the Llama decoder:
+ * learned position + token-type embeddings,
+ * LayerNorm (weight+bias) instead of RMSNorm,
+ * bidirectional attention (no causal mask, no RoPE),
+ * GELU FFN,
+ * biased linears,
+ * and mean pooling + L2 normalize to a sentence vector.
+ * Batch size 1, no padding (single sequence per call).
  */
 
 import { Tensor, tidy } from "@deno-mlx/tensor";
 import { Dtype } from "@deno-mlx/core";
-import { hubFile } from "./hub.ts";
+import { resolveModelDir, resolveSnapshot } from "./hub.ts";
+import { resolveWeightFiles } from "./safetensors.ts";
 import { Weights } from "./weights.ts";
 import {
   embedding,
@@ -31,11 +36,25 @@ export interface BertConfig {
   intermediateSize: number;
   vocabSize: number;
   layerNormEps: number;
+  maxPositionEmbeddings: number;
+  modelType: string;
 }
 
 export function loadBertConfig(repoId: string): BertConfig {
+  return loadBertConfigFromDir(resolveSnapshot(repoId));
+}
+
+export function loadBertConfigFromDir(modelDir: string): BertConfig {
+  const path = `${resolveModelDir(modelDir)}/config.json`;
   // deno-lint-ignore no-explicit-any
-  const c: any = JSON.parse(Deno.readTextFileSync(hubFile(repoId, "config.json")));
+  const c: any = JSON.parse(Deno.readTextFileSync(path));
+  const modelType = String(c.model_type ?? "bert");
+  if (modelType !== "bert" && modelType !== "roberta") {
+    throw new Error(
+      `Unsupported embedding model_type "${modelType}" in ${path}. ` +
+        `Supported: bert, roberta.`,
+    );
+  }
   return {
     hiddenSize: c.hidden_size,
     numLayers: c.num_hidden_layers,
@@ -44,6 +63,8 @@ export function loadBertConfig(repoId: string): BertConfig {
     intermediateSize: c.intermediate_size,
     vocabSize: c.vocab_size,
     layerNormEps: c.layer_norm_eps ?? 1e-12,
+    maxPositionEmbeddings: Number(c.max_position_embeddings ?? 512),
+    modelType,
   };
 }
 
@@ -93,7 +114,12 @@ export class BertModel {
   }
 
   static load(repoId: string, cfg: BertConfig): BertModel {
-    using w = Weights.load(hubFile(repoId, "model.safetensors"));
+    return BertModel.loadDir(resolveSnapshot(repoId), cfg);
+  }
+
+  static loadDir(modelDir: string, cfg: BertConfig): BertModel {
+    const { paths } = resolveWeightFiles(modelDir);
+    using w = Weights.loadPaths(paths);
     const g = (n: string) => w.get(n);
     const layers: BertLayer[] = [];
     for (let i = 0; i < cfg.numLayers; i++) {
@@ -129,7 +155,13 @@ export class BertModel {
 
   /** Encode token ids to a single normalized [hidden] sentence embedding. */
   embed(tokenIds: number[]): Tensor {
-    const { hiddenSize, numHeads, headDim, layerNormEps } = this.cfg;
+    const { hiddenSize, numHeads, headDim, layerNormEps, maxPositionEmbeddings } =
+      this.cfg;
+    if (tokenIds.length > maxPositionEmbeddings) {
+      throw new Error(
+        `Embedding input length ${tokenIds.length} exceeds max_position_embeddings ${maxPositionEmbeddings}`,
+      );
+    }
     const seq = tokenIds.length;
     const scale = 1 / Math.sqrt(headDim);
 

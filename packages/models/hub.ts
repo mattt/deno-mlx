@@ -1,10 +1,13 @@
 /**
- * Hugging Face Hub cache resolution.
+ * Hugging Face Hub cache resolution and local model directory helpers.
  *
  * Reads the same on-disk layout `huggingface-cli`/`hf download` writes
- * (`$HF_HOME/hub/models--org--repo/…`), so this library and the HF tools share
- * one copy of every model — no second download, no separate store.
+ * (`$HF_HOME/hub/models--org--repo/…`),
+ * so this library and the HF tools share one copy of every model —
+ * no second download, no separate store.
  */
+
+import { resolveWeightFiles } from "./safetensors.ts";
 
 /** Root of the HF hub cache (honours HF_HOME, then HF_HUB_CACHE, else ~/.cache). */
 export function hubCacheDir(): string {
@@ -34,6 +37,30 @@ export function hubFile(repoId: string, file: string): string {
   return `${resolveSnapshot(repoId)}/${file}`;
 }
 
+/** Normalize and validate an explicit local model directory. */
+export function resolveModelDir(modelDir: string): string {
+  let st;
+  try {
+    st = Deno.statSync(modelDir);
+  } catch {
+    throw new Error(`Model directory not found: ${modelDir}`);
+  }
+  if (!st.isDirectory) throw new Error(`Not a directory: ${modelDir}`);
+  return modelDir.replace(/\/+$/, "");
+}
+
+/**
+ * Ensure a model directory has the files needed for chat/embeddings load.
+ * Throws with an actionable message listing the first missing piece.
+ */
+export function assertModelReady(modelDir: string, _kind: "chat" | "embed"): void {
+  const dir = resolveModelDir(modelDir);
+  if (!exists(`${dir}/config.json`)) {
+    throw new Error(`Missing config.json in ${dir}`);
+  }
+  resolveWeightFiles(dir); // validates weight layout
+}
+
 function readMainRef(repoDir: string): string | null {
   try {
     return Deno.readTextFileSync(`${repoDir}/refs/main`).trim();
@@ -46,9 +73,18 @@ function newestSnapshot(repoDir: string): string | null {
   try {
     const dirs = [...Deno.readDirSync(`${repoDir}/snapshots`)]
       .filter((e) => e.isDirectory)
-      .map((e) => e.name);
-    return dirs[0] ?? null;
+      .map((e) => e.name)
+      .sort();
+    return dirs.at(-1) ?? null;
   } catch {
     return null;
+  }
+}
+
+function exists(path: string): boolean {
+  try {
+    return Deno.statSync(path).isFile;
+  } catch {
+    return false;
   }
 }

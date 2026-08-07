@@ -1,16 +1,17 @@
 /**
- * Llama-family forward pass (SmolLM2, Llama 3.x, and close relatives) built from
- * mlx-c fast ops. Batch size is fixed at 1.
+ * Llama-family forward pass (SmolLM2, Llama 3.x, and close relatives) built from mlx-c fast ops.
+ * Batch size is fixed at 1.
  *
- * Memory: each layer runs inside a `tidy` that keeps only [hidden, k, v]; the
- * ~15 intermediates it creates are freed immediately. The KV cache tensors live
- * across calls and are disposed explicitly when replaced.
+ * Memory: each layer runs inside a `tidy` that keeps only [hidden, k, v];
+ * the ~15 intermediates it creates are freed immediately.
+ * The KV cache tensors live across calls and are disposed explicitly when replaced.
  */
 
 import { Tensor, tidy } from "@deno-mlx/tensor";
 import { Dtype } from "@deno-mlx/core";
 import type { LlamaConfig } from "./config.ts";
-import { hubFile } from "./hub.ts";
+import { resolveSnapshot } from "./hub.ts";
+import { resolveWeightFiles } from "./safetensors.ts";
 import { Weights } from "./weights.ts";
 import {
   argmax,
@@ -83,8 +84,15 @@ export class LlamaModel {
     this.#layers = layers;
   }
 
+  /** Load from a Hugging Face Hub repo id (shared HF cache). */
   static load(repoId: string, cfg: LlamaConfig): LlamaModel {
-    using w = Weights.load(hubFile(repoId, "model.safetensors"));
+    return LlamaModel.loadDir(resolveSnapshot(repoId), cfg);
+  }
+
+  /** Load from an explicit model directory containing config + safetensors. */
+  static loadDir(modelDir: string, cfg: LlamaConfig): LlamaModel {
+    const { paths } = resolveWeightFiles(modelDir);
+    using w = Weights.loadPaths(paths);
     const embed = w.get("model.embed_tokens.weight");
     const norm = w.get("model.norm.weight");
     // Untied models ship an explicit lm_head; tied ones reuse embed_tokens.
@@ -108,8 +116,9 @@ export class LlamaModel {
   }
 
   /**
-   * Run the transformer over `tokenIds`, updating `cache`, and return the
-   * logits for the final position as a [vocab] float32 tensor (caller owns it).
+   * Run the transformer over `tokenIds`, updating `cache`,
+   * and return the logits for the final position as a [vocab] float32 tensor
+   * (caller owns it).
    */
   forward(tokenIds: number[], cache: KVCache): Tensor {
     const { numHeads, numKVHeads, headDim, hiddenSize, ropeTheta, rmsNormEps } = this.cfg;
