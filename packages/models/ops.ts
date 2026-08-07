@@ -1,8 +1,8 @@
 /**
  * Model-level ops: thin Tensor->Tensor wrappers over the mlx-c functions a Llama
  * forward pass needs (embedding, RMSNorm, RoPE, SDPA, transpose, concat, SwiGLU
- * activation, argmax). These live in Layer 3 rather than the tensor package to
- * keep Layer 2 small and general.
+ * activation, argmax).
+ * These live in Layer 3 rather than the tensor package to keep Layer 2 small and general.
  */
 
 import { openMlxc } from "@deno-mlx/core";
@@ -67,7 +67,10 @@ export function rope(x: Tensor, dims: number, base: number, offset: number): Ten
   );
 }
 
-/** Scaled dot-product attention. `maskMode` is e.g. "causal" or "". */
+/**
+ * Scaled dot-product attention.
+ * `maskMode` is e.g. "causal" or "".
+ */
 export function sdpa(
   q: Tensor,
   k: Tensor,
@@ -211,9 +214,22 @@ export function argmax(x: Tensor, axis = x.ndim - 1): Tensor {
   return result((r) => c.mlx_argmax_axis(ptr(r), x.handle, axis, false, stream()));
 }
 
-/** Read a size-1 uint32 tensor as a JS number (for a sampled token id). */
+/**
+ * Read a size-1 uint32 tensor (blocking).
+ * Prefer {@link itemU32Async}.
+ */
 export function itemU32(t: Tensor): number {
   t.evalSync();
+  return readU32(t);
+}
+
+/** Read a size-1 uint32 tensor after nonblocking eval. */
+export async function itemU32Async(t: Tensor): Promise<number> {
+  await t.eval();
+  return readU32(t);
+}
+
+function readU32(t: Tensor): number {
   const p = raw.mlx_array_data_uint32(t.handle);
   if (!p) throw new Error("null uint32 data pointer");
   return new Deno.UnsafePointerView(p).getUint32(0);
@@ -240,6 +256,18 @@ export function mulScalar(x: Tensor, factor: number): Tensor {
 /** A PRNG key tensor from a seed (for reproducible sampling). */
 export function randomKey(seed: number): Tensor {
   return result((r) => c.mlx_random_key(ptr(r), BigInt(seed)));
+}
+
+/**
+ * Split a PRNG key into two independent keys (keep, use).
+ * Disposes the input key and returns ownership of both outputs.
+ */
+export function randomSplit(key: Tensor): { keep: Tensor; use: Tensor } {
+  const keep = raw.mlx_array_new() as Uint8Array;
+  const use = raw.mlx_array_new() as Uint8Array;
+  c.mlx_random_split(ptr(keep), ptr(use), key.handle, stream());
+  key[Symbol.dispose]();
+  return { keep: Tensor.fromHandle(keep), use: Tensor.fromHandle(use) };
 }
 
 /** Sample one index from unnormalized `logits` along `axis` (does softmax). */

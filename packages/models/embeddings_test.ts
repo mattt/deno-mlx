@@ -1,8 +1,9 @@
 /**
- * Embeddings tests — deterministic and network-free (fixed token ids). Values
- * are captured from a run validated at cosine 1.00000 against transformers.js
- * feature-extraction (mean pool + normalize). Requires the model in the HF
- * cache and libmlxc.dylib; skipped if the model is absent.
+ * Embeddings tests — deterministic and network-free (fixed token ids).
+ * Values are captured from a run validated at cosine 1.00000 against transformers.js
+ * feature-extraction (mean pool + normalize).
+ * Requires the model in the HF cache and libmlxc.dylib;
+ * skipped if the model is absent.
  */
 
 import { assert, assertAlmostEquals, assertEquals } from "jsr:@std/assert@^1";
@@ -33,40 +34,45 @@ Deno.test("bert config parses all-MiniLM", opts, () => {
   assertEquals(cfg.numHeads, 12);
 });
 
-Deno.test("embedding matches transformers.js reference & is unit norm", opts, () => {
+Deno.test(
+  "embedding matches transformers.js reference & is unit norm",
+  opts,
+  async () => {
+    const cfg = loadBertConfig(REPO);
+    using model = BertModel.load(REPO, cfg);
+    using v = model.embed(CAT_MAT);
+    const arr = await v.toFloat32ArrayAsync();
+    assertEquals(arr.length, 384);
+    assertEquals(cfg.maxPositionEmbeddings > 0, true);
+
+    const expectFirst8 = [
+      0.134177,
+      -0.0329,
+      -0.024804,
+      0.041439,
+      -0.036348,
+      0.041814,
+      0.031217,
+      0.037202,
+    ];
+    expectFirst8.forEach((x, i) => assertAlmostEquals(arr[i], x, 1e-3));
+
+    let ss = 0;
+    for (const x of arr) ss += x * x;
+    assertAlmostEquals(Math.sqrt(ss), 1, 1e-4); // L2 normalized
+  },
+);
+
+Deno.test("semantics: paraphrase closer than unrelated", opts, async () => {
   const cfg = loadBertConfig(REPO);
   using model = BertModel.load(REPO, cfg);
-  using v = model.embed(CAT_MAT);
-  const arr = v.toFloat32Array();
-  assertEquals(arr.length, 384);
-
-  const expectFirst8 = [
-    0.134177,
-    -0.0329,
-    -0.024804,
-    0.041439,
-    -0.036348,
-    0.041814,
-    0.031217,
-    0.037202,
-  ];
-  expectFirst8.forEach((x, i) => assertAlmostEquals(arr[i], x, 1e-3));
-
-  let ss = 0;
-  for (const x of arr) ss += x * x;
-  assertAlmostEquals(Math.sqrt(ss), 1, 1e-4); // L2 normalized
-});
-
-Deno.test("semantics: paraphrase closer than unrelated", opts, () => {
-  const cfg = loadBertConfig(REPO);
-  using model = BertModel.load(REPO, cfg);
-  const embed = (ids: number[]) => {
+  const embed = async (ids: number[]) => {
     using v = model.embed(ids);
-    return v.toFloat32Array();
+    return await v.toFloat32ArrayAsync();
   };
-  const cat = embed(CAT_MAT);
-  const paraphrase = cosineSimilarity(cat, embed(FELINE_RUG));
-  const unrelated = cosineSimilarity(cat, embed(QUANTUM));
+  const cat = await embed(CAT_MAT);
+  const paraphrase = cosineSimilarity(cat, await embed(FELINE_RUG));
+  const unrelated = cosineSimilarity(cat, await embed(QUANTUM));
   assert(
     paraphrase > 0.4 && paraphrase > unrelated + 0.3,
     `paraphrase=${paraphrase.toFixed(3)} unrelated=${unrelated.toFixed(3)}`,
