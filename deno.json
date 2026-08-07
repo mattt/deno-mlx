@@ -4,6 +4,9 @@
     "./packages/tensor",
     "./packages/models"
   ],
+  "imports": {
+    "@huggingface/hub": "npm:@huggingface/hub@^2.14.6"
+  },
   "permissions": {
     "mlx": {
       "ffi": true,
@@ -13,9 +16,19 @@
   },
   "tasks": {
     "codegen": "deno run --allow-run --allow-read --allow-write --allow-env packages/core/codegen/generate.ts",
-    "chat": "deno run -P=mlx --allow-write --allow-net --unstable-ffi examples/chat.ts",
-    "demo": "deno run -P=mlx --allow-write --allow-net --allow-run --unstable-ffi examples/summarizer/server.ts",
-    "test": "deno test -P=mlx --unstable-ffi"
+    "test": "deno test -P=mlx --allow-write",
+    "chat": "deno run -P=mlx --allow-write --allow-net examples/chat.ts",
+    "cli": "deno run -P=mlx --allow-write --allow-net --allow-run examples/cli/main.ts",
+    "web": "deno run -P=mlx --allow-write --allow-net --allow-run examples/summarizer/server.ts",
+    "demo": "deno task web",
+    "desktop": "deno run -P=mlx --allow-write --allow-net --allow-run examples/desktop/main.ts",
+    "desktop:app": "deno desktop --backend webview -P=mlx --allow-write --allow-net --allow-run examples/desktop/main.ts",
+    "bundle:macos": "deno run -A scripts/bundle_macos.ts",
+    "compile:cli": "deno compile -P=mlx --allow-write --allow-net --allow-run --target aarch64-apple-darwin --output dist/bin/deno-mlx examples/cli/main.ts",
+    "publish:dry-run": "deno publish --dry-run --allow-dirty",
+    "bench": "deno run -P=mlx --allow-write --allow-net scripts/bench.ts",
+    "fmt:check": "deno fmt --check",
+    "lint": "deno lint"
   },
   "fmt": {
     "useTabs": false,

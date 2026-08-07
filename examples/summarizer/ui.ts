@@ -77,6 +77,7 @@ export const HTML = String.raw`<!doctype html>
       <button id="paste">Paste clipboard</button>
       <button id="summarize" class="primary">Summarize</button>
       <button id="chat">Chat</button>
+      <button id="embed">Similarity</button>
       <span class="spacer"></span>
       <span id="status" class="status"></span>
     </div>
@@ -86,7 +87,7 @@ export const HTML = String.raw`<!doctype html>
 <script>
   const $ = (id) => document.getElementById(id);
   const input = $("input"), out = $("out"), status = $("status");
-  const buttons = ["paste", "summarize", "chat"].map($);
+  const buttons = ["paste", "summarize", "chat", "embed"].map($);
   const setBusy = (b) => { buttons.forEach((x) => x.disabled = b); out.classList.toggle("cursor", b); };
 
   async function run(mode) {
@@ -117,6 +118,29 @@ export const HTML = String.raw`<!doctype html>
 
   $("summarize").onclick = () => run("summarize");
   $("chat").onclick = () => run("chat");
+  $("embed").onclick = async () => {
+    const lines = input.value.split(/\n---\n/);
+    if (lines.length < 2) {
+      status.textContent = "enter two texts separated by a line with ---";
+      return;
+    }
+    out.textContent = ""; status.textContent = "embedding…"; setBusy(true);
+    try {
+      const res = await fetch("/embed", {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ a: lines[0].trim(), b: lines.slice(1).join("\n---\n").trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || res.statusText);
+      out.textContent = "cosine similarity: " + data.similarity.toFixed(4) +
+        "\ndimension: " + data.dim;
+      status.textContent = "ok";
+    } catch (e) {
+      status.textContent = "error: " + e.message;
+    } finally {
+      setBusy(false);
+    }
+  };
   $("paste").onclick = async () => {
     status.textContent = "reading clipboard…";
     input.value = await (await fetch("/clipboard")).text();

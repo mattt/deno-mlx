@@ -1,26 +1,29 @@
 /**
- * Minimal streaming chat over a local MLX model.
+ * Minimal streaming chat (compat entry for `deno task chat`).
  *
- *   deno task chat                       # default model + prompt
- *   deno task chat <repoId> "<prompt>"
- *
- * The model is read from the shared Hugging Face cache
- * (`hf download HuggingFaceTB/SmolLM2-135M-Instruct` first).
+ * Prefer the full CLI: `deno task cli -- chat "…"`.
  */
 
-import { chat, loadModel } from "../packages/models/mod.ts";
+import { chat } from "@deno-mlx/models";
+import { loadChatModel } from "./shared/models.ts";
 
-const repo = Deno.args[0] ?? "HuggingFaceTB/SmolLM2-135M-Instruct";
-const prompt = Deno.args[1] ?? "In one sentence, what is Deno?";
+if (Deno.build.os !== "darwin" || Deno.build.arch !== "aarch64") {
+  console.error("deno-mlx requires Apple Silicon macOS.");
+  Deno.exit(1);
+}
 
-using m = await loadModel(repo);
+const prompt = Deno.args[0]?.startsWith("--")
+  ? "In one sentence, what is Deno?"
+  : (Deno.args[0] ?? "In one sentence, what is Deno?");
+
+using m = await loadChatModel();
 const enc = new TextEncoder();
-
 const t0 = performance.now();
 let n = 0;
-for await (const { text } of chat(m, prompt, { maxTokens: 100 })) {
-  await Deno.stdout.write(enc.encode(text));
+for await (const t of chat(m, prompt, { maxTokens: 100 })) {
+  if (t.id < 0) continue;
+  await Deno.stdout.write(enc.encode(t.text));
   n++;
 }
 const dt = (performance.now() - t0) / 1000;
-console.log(`\n\n[${n} tokens, ${(n / dt).toFixed(1)} tok/s]`);
+console.log(`\n\n[${n} tokens, ${(n / Math.max(dt, 1e-6)).toFixed(1)} tok/s]`);

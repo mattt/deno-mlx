@@ -1,0 +1,17 @@
+{
+  "name": "@deno-mlx/desktop-example",
+  "version": "0.1.0",
+  "exports": "./main.ts",
+  "imports": {
+    "@huggingface/hub": "npm:@huggingface/hub@^2.14.6"
+  },
+  "desktop": {
+    "backend": "webview"
+  },
+  "tasks": {
+    "start": "deno run -P=mlx --allow-net --allow-write --allow-run examples/desktop/main.ts"
+  },
+  "publish": {
+    "exclude": ["**"]
+  }
+}
