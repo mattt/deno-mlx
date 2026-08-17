@@ -1,0 +1,71 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: test (macos-15 arm64)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Install mlx-c
+        run: brew install mlx-c
+
+      - name: Show versions
+        run: |
+          deno --version
+          brew list --versions mlx-c mlx || true
+          ls -la /opt/homebrew/opt/mlx-c/lib || true
+
+      - name: Format
+        run: deno fmt --check
+
+      - name: Lint
+        run: deno lint
+
+      - name: Unit tests
+        run: deno test -P=mlx --allow-write --allow-read=/opt/homebrew
+
+      - name: Publish dry-run
+        run: deno publish --dry-run --allow-dirty
+
+  integration:
+    name: integration (models)
+    runs-on: macos-15
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Install mlx-c + huggingface_hub
+        run: |
+          brew install mlx-c
+          pip3 install --user huggingface_hub
+
+      - name: Cache HF models
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-${{ runner.os }}-smolm2-minilm-v1
+
+      - name: Download models
+        run: |
+          python3 - <<'PY'
+          from huggingface_hub import snapshot_download
+          snapshot_download("HuggingFaceTB/SmolLM2-135M-Instruct")
+          snapshot_download("sentence-transformers/all-MiniLM-L6-v2")
+          PY
+
+      - name: Full tests (no ignores expected for chat/embed)
+        run: deno test -P=mlx --allow-write --allow-net --allow-read=/opt/homebrew
